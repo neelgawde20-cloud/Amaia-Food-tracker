@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Amaia's Food Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --cream: #FDF8F1;
+    --cream2: #F7F0E6;
+    --terracotta: #C8624A;
+    --terracotta-light: #F0D5CC;
+    --terracotta-mid: #E8937D;
+    --sage: #6B8F71;
+    --sage-light: #D4E6D6;
+    --amber: #D4933A;
+    --amber-light: #F5E4C8;
+    --plum: #8B6B8E;
+    --plum-light: #E8DCE9;
+    --text-dark: #3A2E26;
+    --text-mid: #7A6558;
+    --text-light: #A89080;
+    --white: #FFFFFF;
+    --shadow-soft: 0 2px 16px rgba(80,50,30,0.08);
+    --shadow-card: 0 4px 24px rgba(80,50,30,0.10);
+    --r-sm: 12px;
+    --r-md: 18px;
+    --r-lg: 24px;
+    --r-xl: 32px;
+  }
+  html, body { height: 100%; background: var(--cream); font-family: 'Nunito', sans-serif; color: var(--text-dark); }
+  #root { height: 100%; }
+  .scrollbar-hide::-webkit-scrollbar { display: none; }
+  .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback } = React;
+
+// ─── DATA ─────────────────────────────────────────────────────────────────────
+
+const FAMILY = ['Mum', 'Dad', 'Grandma', 'Grandpa', 'Auntie', 'Uncle'];
+
+const DRI = {
+  iron:     { label: 'Iron',      unit: 'mg',  goal: 11,   color: '#C8624A', icon: '🩸' },
+  calcium:  { label: 'Calcium',   unit: 'mg',  goal: 260,  color: '#6B8F71', icon: '🦴' },
+  protein:  { label: 'Protein',   unit: 'g',   goal: 11,   color: '#D4933A', icon: '💪' },
+  zinc:     { label: 'Zinc',      unit: 'mg',  goal: 3,    color: '#8B6B8E', icon: '⚡' },
+  vitaminD: { label: 'Vitamin D', unit: 'mcg', goal: 10,   color: '#C8A04A', icon: '☀️' },
+  vitaminC: { label: 'Vitamin C', unit: 'mg',  goal: 50,   color: '#6B8F71', icon: '🍊' },
+  omega3:   { label: 'Omega-3',   unit: 'g',   goal: 0.5,  color: '#5B7FA8', icon: '🐟' },
+};
+
+// Nutrients per serving
+const FOODS = {
+  // Fruits & Veg
+  'Sweet Potato': { emoji: '🍠', cat: 'Fruit & Veg', iron: 0.4, calcium: 20, protein: 1.0, zinc: 0.2, vitaminC: 12, vitaminD: 0, omega3: 0 },
+  'Carrot':       { emoji: '🥕', cat: 'Fruit & Veg', iron: 0.3, calcium: 16, protein: 0.5, zinc: 0.1, vitaminC: 3,  vitaminD: 0, omega3: 0 },
+  'Peas':         { emoji: '🟢', cat: 'Fruit & Veg', iron: 1.0, calcium: 15, protein: 3.0, zinc: 0.5, vitaminC: 12, vitaminD: 0, omega3: 0 },
+  'Broccoli':     { emoji: '🥦', cat: 'Fruit & Veg', iron: 0.5, calcium: 35, protein: 2.0, zinc: 0.2, vitaminC: 50, vitaminD: 0, omega3: 0 },
+  'Butternut Sq.':{ emoji: '🎃', cat: 'Fruit & Veg', iron: 0.3, calcium: 18, protein: 0.8, zinc: 0.1, vitaminC: 15, vitaminD: 0, omega3: 0 },
+  'Spinach':      { emoji: '🌿', cat: 'Fruit & Veg', iron: 1.5, calcium: 30, protein: 1.5, zinc: 0.3, vitaminC: 14, vitaminD: 0, omega3: 0 },
+  'Banana':       { emoji: '🍌', cat: 'Fruit & Veg', iron: 0.2, calcium: 4,  protein: 0.7, zinc: 0.1, vitaminC: 6,  vitaminD: 0, omega3: 0 },
+  'Apple':        { emoji: '🍎', cat: 'Fruit & Veg', iron: 0.1, calcium: 4,  protein: 0.2, zinc: 0.05,vitaminC: 3,  vitaminD: 0, omega3: 0 },
+  'Pear':         { emoji: '🍐', cat: 'Fruit & Veg', iron: 0.1, calcium: 5,  protein: 0.2, zinc: 0.05,vitaminC: 3,  vitaminD: 0, omega3: 0 },
+  'Avocado':      { emoji: '🥑', cat: 'Fruit & Veg', iron: 0.2, calcium: 4,  protein: 0.9, zinc: 0.2, vitaminC: 5,  vitaminD: 0, omega3: 0.1 },
+  'Mango':        { emoji: '🥭', cat: 'Fruit & Veg', iron: 0.1, calcium: 7,  protein: 0.4, zinc: 0.05,vitaminC: 28, vitaminD: 0, omega3: 0 },
+  // Proteins
+  'Chicken':      { emoji: '🍗', cat: 'Protein',    iron: 0.4, calcium: 5,  protein: 8.0, zinc: 0.7, vitaminC: 0,  vitaminD: 0, omega3: 0 },
+  'Lentils':      { emoji: '🫘', cat: 'Protein',    iron: 1.5, calcium: 10, protein: 4.5, zinc: 0.7, vitaminC: 1,  vitaminD: 0, omega3: 0 },
+  'Egg Yolk':     { emoji: '🥚', cat: 'Protein',    iron: 0.6, calcium: 22, protein: 2.7, zinc: 0.4, vitaminC: 0,  vitaminD: 0.9,omega3: 0.1},
+  'Tofu':         { emoji: '⬜', cat: 'Protein',    iron: 0.6, calcium: 100,protein: 4.0, zinc: 0.3, vitaminC: 0,  vitaminD: 0, omega3: 0 },
+  'Salmon':       { emoji: '🐟', cat: 'Protein',    iron: 0.3, calcium: 10, protein: 7.0, zinc: 0.3, vitaminC: 0,  vitaminD: 7.0,omega3: 1.2},
+  'Beef Puree':   { emoji: '🥩', cat: 'Protein',    iron: 1.8, calcium: 4,  protein: 7.0, zinc: 1.5, vitaminC: 0,  vitaminD: 0, omega3: 0 },
+  // Grains & Dairy
+  'Rice Cereal':  { emoji: '🌾', cat: 'Grains',     iron: 3.0, calcium: 130,protein: 1.5, zinc: 1.0, vitaminC: 0,  vitaminD: 0, omega3: 0 },
+  'Oatmeal':      { emoji: '🥣', cat: 'Grains',     iron: 1.5, calcium: 15, protein: 3.0, zinc: 0.5, vitaminC: 0,  vitaminD: 0, omega3: 0 },
+  'Full-fat Yogurt':{ emoji:'🥛', cat: 'Dairy',     iron: 0.1, calcium: 110,protein: 4.0, zinc: 0.4, vitaminC: 0,  vitaminD: 0.5,omega3: 0 },
+  'Cheese':       { emoji: '🧀', cat: 'Dairy',      iron: 0.1, calcium: 200,protein: 4.0, zinc: 0.7, vitaminC: 0,  vitaminD: 0.1,omega3: 0 },
+};
+
+const FORMULA_PER_FEED = { iron:1.2, calcium:68, protein:2.0, zinc:0.5, vitaminC:12, vitaminD:1.2, omega3:0.06 };
+
+const MEALS = ['Breakfast', 'Lunch', 'Dinner', 'Snack'];
+const MEAL_ICONS = { Breakfast:'🌅', Lunch:'☀️', Dinner:'🌙', Snack:'🍪' };
+
+const MILESTONES = [
+  { food: 'Rice Cereal', emoji: '🌾' },
+  { food: 'Sweet Potato', emoji: '🍠' },
+  { food: 'Carrot', emoji: '🥕' },
+  { food: 'Peas', emoji: '🟢' },
+  { food: 'Banana', emoji: '🍌' },
+  { food: 'Apple', emoji: '🍎' },
+  { food: 'Avocado', emoji: '🥑' },
+  { food: 'Chicken', emoji: '🍗' },
+  { food: 'Lentils', emoji: '🫘' },
+  { food: 'Egg Yolk', emoji: '🥚' },
+  { food: 'Salmon', emoji: '🐟' },
+  { food: 'Tofu', emoji: '⬜' },
+  { food: 'Full-fat Yogurt', emoji: '🥛' },
+  { food: 'Broccoli', emoji: '🥦' },
+  { food: 'Mango', emoji: '🥭' },
+  { food: 'Spinach', emoji: '🌿' },
+  { food: 'Oatmeal', emoji: '🥣' },
+  { food: 'Beef Puree', emoji: '🥩' },
+];
+
+const DAYS_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+// Initial sample data
+function makeInitialState() {
+  const today = new Date();
+  const fmt = d => d.toISOString().slice(0,10);
+  const yest = new Date(today); yest.setDate(yest.getDate()-1);
+  const d2   = new Date(today); d2.setDate(d2.getDate()-2);
+  const d3   = new Date(today); d3.setDate(d3.getDate()-3);
+
+  return {
+    screen: 'home',
+    logModal: null,
+    familyModal: false,
+    selectedFamily: 'Mum',
+    entries: {
+      [fmt(d3)]: {
+        formulaFeeds: 4,
+        meals: {
+          Breakfast: [{ food:'Rice Cereal', by:'Mum' }, { food:'Banana', by:'Mum' }],
+          Lunch:     [{ food:'Sweet Potato', by:'Dad' }, { food:'Carrot', by:'Dad' }],
+          Dinner:    [{ food:'Chicken', by:'Mum' }, { food:'Peas', by:'Mum' }],
+          Snack:     [{ food:'Apple', by:'Grandma' }],
+        }
+      },
+      [fmt(d2)]: {
+        formulaFeeds: 5,
+        meals: {
+          Breakfast: [{ food:'Oatmeal', by:'Dad' }, { food:'Pear', by:'Dad' }],
+          Lunch:     [{ food:'Lentils', by:'Mum' }, { food:'Carrot', by:'Mum' }],
+          Dinner:    [{ food:'Broccoli', by:'Dad' }, { food:'Sweet Potato', by:'Dad' }],
+          Snack:     [],
+        }
+      },
+      [fmt(yest)]: {
+        formulaFeeds: 4,
+        meals: {
+          Breakfast: [{ food:'Rice Cereal', by:'Mum' }],
+          Lunch:     [{ food:'Egg Yolk', by:'Grandma' }, { food:'Avocado', by:'Grandma' }],
+          Dinner:    [{ food:'Salmon', by:'Dad' }, { food:'Peas', by:'Dad' }],
+          Snack:     [{ food:'Banana', by:'Mum' }],
+        }
+      },
+      [fmt(today)]: {
+        formulaFeeds: 2,
+        meals: {
+          Breakfast: [{ food:'Oatmeal', by:'Mum' }, { food:'Apple', by:'Mum' }],
+          Lunch:     [{ food:'Tofu', by:'Dad' }, { food:'Broccoli', by:'Dad' }],
+          Dinner:    [],
+          Snack:     [],
+        }
+      },
+    },
+    milestonesUnlocked: ['Rice Cereal','Sweet Potato','Carrot','Peas','Banana','Apple','Avocado','Chicken','Lentils','Egg Yolk','Salmon','Oatmeal','Tofu','Broccoli'],
+    tweaks: {"primaryColor":"#C8624A","bgColor":"#FDF8F1","fontScale":1,"babyName":"Amaia","babyAge":"9 months"},
+  };
+}
+
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
+
+function calcNutrients(dayData) {
+  const totals = { iron:0, calcium:0, protein:0, zinc:0, vitaminD:0, vitaminC:0, omega3:0 };
+  if (!dayData) return totals;
+  const ff = dayData.formulaFeeds || 0;
+  Object.keys(totals).forEach(k => totals[k] += (FORMULA_PER_FEED[k]||0) * ff);
+  Object.values(dayData.meals || {}).forEach(items =>
+    (items||[]).forEach(({ food }) => {
+      const f = FOODS[food];
+      if (f) Object.keys(totals).forEach(k => totals[k] += (f[k]||0));
+    })
+  );
+  return totals;
+}
+
+function todayKey() { return new Date().toISOString().slice(0,10); }
+
+function getMealCount(dayData) {
+  if (!dayData) return 0;
+  return Object.values(dayData.meals||{}).reduce((a,m)=>a+(m||[]).length,0);
+}
+
+function pct(val, goal) { return Math.min(100, Math.round((val/goal)*100)); }
+
+function round1(n) { return Math.round(n*10)/10; }
+
+// ─── COMPONENTS ───────────────────────────────────────────────────────────────
+
+function BottomNav({ screen, setScreen, tweaks }) {
+  const tabs = [
+    { id:'home',       icon:HomeIcon,       label:'Today' },
+    { id:'nutrients',  icon:NutrientIcon,   label:'Nutrients' },
+    { id:'week',       icon:CalIcon,        label:'Week' },
+    { id:'milestones', icon:StarIcon,       label:'Milestones' },
+  ];
+  const primary = tweaks.primaryColor || '#C8624A';
+  const bg = tweaks.bgColor || '#FDF8F1';
+  return (
+    <nav style={{
+      position:'fixed', bottom:0, left:0, right:0,
+      background: bg,
+      borderTop:'1.5px solid #EDE4D8',
+      display:'flex', justifyContent:'space-around',
+      padding:'8px 0 max(8px, env(safe-area-inset-bottom))',
+      zIndex:100, boxShadow:'0 -4px 20px rgba(80,50,30,0.06)',
+    }}>
+      {tabs.map(t => {
+        const active = screen === t.id;
+        const TC = t.icon;
+        return (
+          <button key={t.id} onClick={()=>setScreen(t.id)} style={{
+            background:'none', border:'none', cursor:'pointer',
+            display:'flex', flexDirection:'column', alignItems:'center', gap:3,
+            padding:'4px 16px', borderRadius:12,
+          }}>
+            <TC active={active} primary={primary} />
+            <span style={{
+              fontSize:11, fontWeight: active?700:500,
+              color: active ? primary : '#A89080',
+              fontFamily:'Nunito',
+            }}>{t.label}</span>
+          </button>
+        );
+      })}
+    </nav>
+  );
+}
+
+function HomeIcon({ active, primary }) {
+  const c = active ? primary : '#C4B0A0';
+  return <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+    <path d="M3 12L12 3l9 9" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M9 21V12h6v9" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M5 10v11h14V10" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>;
+}
+function NutrientIcon({ active, primary }) {
+  const c = active ? primary : '#C4B0A0';
+  return <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+    <rect x="3" y="14" width="4" height="7" rx="1" fill={c} opacity={active?1:0.5}/>
+    <rect x="10" y="9" width="4" height="12" rx="1" fill={c} opacity={active?1:0.7}/>
+    <rect x="17" y="4" width="4" height="17" rx="1" fill={c}/>
+  </svg>;
+}
+function CalIcon({ active, primary }) {
+  const c = active ? primary : '#C4B0A0';
+  return <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+    <rect x="3" y="4" width="18" height="18" rx="3" stroke={c} strokeWidth="2"/>
+    <path d="M3 9h18" stroke={c} strokeWidth="2"/>
+    <path d="M8 2v4M16 2v4" stroke={c} strokeWidth="2" strokeLinecap="round"/>
+    <circle cx="8" cy="14" r="1.5" fill={c}/><circle cx="12" cy="14" r="1.5" fill={c}/><circle cx="16" cy="14" r="1.5" fill={c}/>
+  </svg>;
+}
+function StarIcon({ active, primary }) {
+  const c = active ? primary : '#C4B0A0';
+  return <svg width="24" height="24" viewBox="0 0 24 24" fill={active?c:'none'} stroke={c} strokeWidth="2">
+    <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/>
+  </svg>;
+}
+
+// ─── HOME SCREEN ──────────────────────────────────────────────────────────────
+
+function HomeScreen({ state, dispatch }) {
+  const tkey = todayKey();
+  const today = state.entries[tkey] || { formulaFeeds:0, meals:{Breakfast:[],Lunch:[],Dinner:[],Snack:[]} };
+  const nutrients = calcNutrients(today);
+  const totalFoods = getMealCount(today);
+  const overallPct = Math.round(Object.keys(DRI).reduce((s,k)=>s+pct(nutrients[k],DRI[k].goal),0)/Object.keys(DRI).length);
+  const primary = state.tweaks.primaryColor || '#C8624A';
+
+  return (
+    <div style={{ padding:'0 0 100px', overflowY:'auto', height:'100%' }} className="scrollbar-hide">
+      {/* Header */}
+      <div style={{
+        background: `linear-gradient(135deg, ${primary} 0%, #D4803A 100%)`,
+        padding:'52px 24px 28px', borderRadius:'0 0 32px 32px',
+        position:'relative', overflow:'hidden',
+      }}>
+        <div style={{ position:'absolute', top:-20, right:-20, width:120, height:120, borderRadius:'50%', background:'rgba(255,255,255,0.08)' }}/>
+        <div style={{ position:'absolute', top:30, right:30, width:60, height:60, borderRadius:'50%', background:'rgba(255,255,255,0.06)' }}/>
+        <div style={{ position:'relative' }}>
+          <p style={{ color:'rgba(255,255,255,0.8)', fontSize:14, fontWeight:600, letterSpacing:0.5 }}>
+            {new Date().toLocaleDateString('en-GB',{weekday:'long', day:'numeric', month:'long'})}
+          </p>
+          <h1 style={{ color:'#fff', fontSize:28, fontWeight:900, marginTop:4 }}>
+            Hi, {state.tweaks.babyName||'Amaia'}! 👶
+          </h1>
+          <p style={{ color:'rgba(255,255,255,0.75)', fontSize:13, marginTop:2 }}>
+            {state.tweaks.babyAge||'9 months'} old · Let's track her nutrition
+          </p>
+          {/* Quick stats */}
+          <div style={{ display:'flex', gap:12, marginTop:18 }}>
+            <StatPill label="Meals today" value={totalFoods} icon="🍴"/>
+            <StatPill label="Formula feeds" value={today.formulaFeeds} icon="🍼"/>
+            <StatPill label="Nutrition" value={`${overallPct}%`} icon="💚"/>
+          </div>
+        </div>
+      </div>
+
+      <div style={{ padding:'20px 16px', display:'flex', flexDirection:'column', gap:16 }}>
+        {/* Formula feeds */}
+        <div style={{ background:'#fff', borderRadius:20, padding:18, boxShadow:'var(--shadow-soft)' }}>
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:12 }}>
+            <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+              <span style={{ fontSize:20 }}>🍼</span>
+              <div>
+                <p style={{ fontWeight:800, fontSize:15, color:'var(--text-dark)' }}>Nan Pro Formula</p>
+                <p style={{ fontSize:12, color:'var(--text-light)' }}>~150ml per feed</p>
+              </div>
+            </div>
+            <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+              <button onClick={()=>dispatch({type:'SET_FORMULA', delta:-1, date:tkey})}
+                style={btnStyle('#F5E4C8','#D4933A')}>−</button>
+              <span style={{ fontSize:22, fontWeight:900, minWidth:28, textAlign:'center', color:primary }}>
+                {today.formulaFeeds}
+              </span>
+              <button onClick={()=>dispatch({type:'SET_FORMULA', delta:1, date:tkey})}
+                style={btnStyle(primary,'#fff')}>+</button>
+            </div>
+          </div>
+          <div style={{ display:'flex', gap:6 }}>
+            {[...Array(6)].map((_,i) => (
+              <div key={i} style={{
+                flex:1, height:6, borderRadius:3,
+                background: i < today.formulaFeeds ? primary : '#EDE4D8',
+                transition:'background 0.3s',
+              }}/>
+            ))}
+          </div>
+        </div>
+
+        {/* Meal slots */}
+        <p style={{ fontWeight:800, fontSize:16, color:'var(--text-dark)', paddingLeft:4 }}>Today's Meals</p>
+        {MEALS.map(meal => {
+          const items = today.meals[meal] || [];
+          return (
+            <MealSlot key={meal} meal={meal} items={items}
+              primary={primary}
+              onAdd={()=>dispatch({type:'OPEN_LOG', meal})}
+              onRemove={(idx)=>dispatch({type:'REMOVE_FOOD', date:tkey, meal, idx})}
+            />
+          );
+        })}
+
+        {/* Nutrient mini-summary */}
+        <div style={{ background:'#fff', borderRadius:20, padding:18, boxShadow:'var(--shadow-soft)' }}>
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14 }}>
+            <p style={{ fontWeight:800, fontSize:15 }}>Today's Nutrition</p>
+            <button onClick={()=>dispatch({type:'SET_SCREEN', screen:'nutrients'})}
+              style={{ fontSize:12, color:primary, fontWeight:700, background:'none', border:'none', cursor:'pointer' }}>
+              See all →
+            </button>
+          </div>
+          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+            {['iron','calcium','protein','vitaminD'].map(k => {
+              const d = DRI[k];
+              const p = pct(nutrients[k], d.goal);
+              return (
+                <div key={k} style={{ display:'flex', alignItems:'center', gap:10 }}>
+                  <span style={{ width:20, fontSize:14 }}>{d.icon}</span>
+                  <span style={{ fontSize:12, fontWeight:600, width:68, color:'var(--text-mid)' }}>{d.label}</span>
+                  <div style={{ flex:1, height:8, borderRadius:4, background:'#F0EAE2', overflow:'hidden' }}>
+                    <div style={{ width:`${p}%`, height:'100%', borderRadius:4, background:d.color, transition:'width 0.8s ease' }}/>
+                  </div>
+                  <span style={{ fontSize:11, fontWeight:700, color:'var(--text-mid)', width:32, textAlign:'right' }}>{p}%</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* Log Modal */}
+      {state.logModal && (
+        <LogModal
+          meal={state.logModal.meal}
+          date={tkey}
+          selectedFamily={state.selectedFamily}
+          primary={primary}
+          bgColor={state.tweaks.bgColor || '#FDF8F1'}
+          onSelectFamily={name=>dispatch({type:'SET_FAMILY', name})}
+          onAdd={(food)=>dispatch({type:'ADD_FOOD', date:tkey, meal:state.logModal.meal, food, by:state.selectedFamily})}
+          onClose={()=>dispatch({type:'CLOSE_LOG'})}
+          milestones={state.milestonesUnlocked}
+        />
+      )}
+    </div>
+  );
+}
+
+function StatPill({ label, value, icon }) {
+  return (
+    <div style={{ background:'rgba(255,255,255,0.2)', borderRadius:12, padding:'8px 12px', flex:1 }}>
+      <div style={{ display:'flex', alignItems:'center', gap:4 }}>
+        <span style={{ fontSize:14 }}>{icon}</span>
+        <span style={{ fontSize:18, fontWeight:900, color:'#fff' }}>{value}</span>
+      </div>
+      <p style={{ fontSize:10, color:'rgba(255,255,255,0.75)', fontWeight:600, marginTop:1 }}>{label}</p>
+    </div>
+  );
+}
+
+function MealSlot({ meal, items, onAdd, onRemove, primary }) {
+  const [open, setOpen] = useState(meal === 'Breakfast' || meal === 'Lunch');
+  const hasItems = items.length > 0;
+  return (
+    <div style={{
+      background:'#fff', borderRadius:20, overflow:'hidden',
+      boxShadow:'var(--shadow-soft)',
+      border: hasItems ? `1.5px solid ${primary}22` : '1.5px solid #F0EAE2',
+    }}>
+      <button onClick={()=>setOpen(!open)} style={{
+        width:'100%', background:'none', border:'none', cursor:'pointer',
+        display:'flex', alignItems:'center', gap:12, padding:'14px 16px',
+      }}>
+        <span style={{ fontSize:22 }}>{MEAL_ICONS[meal]}</span>
+        <div style={{ flex:1, textAlign:'left' }}>
+          <p style={{ fontWeight:800, fontSize:15, color:'var(--text-dark)' }}>{meal}</p>
+          <p style={{ fontSize:12, color:'var(--text-light)', marginTop:1 }}>
+            {hasItems ? `${items.length} food${items.length>1?'s':''}` : 'Nothing logged yet'}
+          </p>
+        </div>
+        {hasItems && (
+          <div style={{ display:'flex', gap:-4 }}>
+            {items.slice(0,4).map((it,i) => (
+              <span key={i} style={{ fontSize:18, marginLeft:-4 }}>{FOODS[it.food]?.emoji||'🍽'}</span>
+            ))}
+          </div>
+        )}
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ transform: open ? 'rotate(180deg)':'', transition:'transform 0.2s' }}>
+          <path d="M4 6l4 4 4-4" stroke="#C4B0A0" strokeWidth="1.5" strokeLinecap="round"/>
+        </svg>
+      </button>
+      {open && (
+        <div style={{ padding:'0 16px 14px', display:'flex', flexDirection:'column', gap:6 }}>
+          {items.map((it,i) => (
+            <div key={i} style={{
+              display:'flex', alignItems:'center', gap:10,
+              background:'#FAF6F1', borderRadius:10, padding:'8px 12px',
+            }}>
+              <span style={{ fontSize:18 }}>{FOODS[it.food]?.emoji||'🍽'}</span>
+              <span style={{ flex:1, fontSize:13, fontWeight:600, color:'var(--text-dark)' }}>{it.food}</span>
+              <span style={{ fontSize:11, color:'var(--text-light)', background:'#EDE4D8', padding:'2px 8px', borderRadius:20, fontWeight:600 }}>
+                by {it.by}
+              </span>
+              <button onClick={()=>onRemove(i)} style={{ background:'none', border:'none', cursor:'pointer', color:'#C4B0A0', fontSize:16, padding:'0 2px' }}>×</button>
+            </div>
+          ))}
+          <button onClick={onAdd} style={{
+            background: hasItems ? '#FAF6F1' : `${primary}15`,
+            border: `1.5px dashed ${primary}60`,
+            borderRadius:10, padding:'10px', cursor:'pointer',
+            fontSize:13, fontWeight:700, color:primary,
+            marginTop:4,
+          }}>
+            + Add food to {meal}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function btnStyle(bg, color) {
+  return {
+    background:bg, border:'none', cursor:'pointer', borderRadius:10,
+    width:32, height:32, fontSize:18, fontWeight:700, color,
+    display:'flex', alignItems:'center', justifyContent:'center',
+    fontFamily:'Nunito',
+  };
+}
+
+// ─── LOG MODAL ────────────────────────────────────────────────────────────────
+
+function LogModal({ meal, date, selectedFamily, onSelectFamily, onAdd, onClose, milestones, primary, bgColor }) {
+  const [cat, setCat] = useState('All');
+  const cats = ['All', 'Fruit & Veg', 'Protein', 'Grains', 'Dairy'];
+  const foods = Object.entries(FOODS).filter(([_,v]) => cat === 'All' || v.cat === cat);
+
+  return (
+    <div style={{
+      position:'fixed', inset:0, background:'rgba(58,46,38,0.55)', zIndex:200,
+      display:'flex', alignItems:'flex-end',
+    }} onClick={e=>e.target===e.currentTarget&&onClose()}>
+      <div style={{
+        background: bgColor, borderRadius:'28px 28px 0 0',
+        width:'100%', maxHeight:'82vh', display:'flex', flexDirection:'column',
+        overflow:'hidden', paddingBottom:'env(safe-area-inset-bottom,8px)',
+      }}>
+        {/* Handle */}
+        <div style={{ display:'flex', justifyContent:'center', padding:'12px 0 4px' }}>
+          <div style={{ width:40, height:4, borderRadius:2, background:'#DDD4C8' }}/>
+        </div>
+        {/* Header */}
+        <div style={{ padding:'4px 20px 12px', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+          <div>
+            <h3 style={{ fontSize:18, fontWeight:900 }}>Add to {meal}</h3>
+            <p style={{ fontSize:12, color:'var(--text-light)', marginTop:2 }}>Tap a food to add it</p>
+          </div>
+          <button onClick={onClose} style={{ background:'#F0EAE2', border:'none', cursor:'pointer', borderRadius:10, width:32, height:32, fontSize:18, color:'var(--text-mid)' }}>×</button>
+        </div>
+        {/* Who's feeding */}
+        <div style={{ padding:'0 20px 12px' }}>
+          <p style={{ fontSize:12, fontWeight:700, color:'var(--text-light)', marginBottom:8, letterSpacing:0.5 }}>LOGGED BY</p>
+          <div style={{ display:'flex', gap:8, overflowX:'auto' }} className="scrollbar-hide">
+            {FAMILY.map(name => (
+              <button key={name} onClick={()=>onSelectFamily(name)} style={{
+                background: selectedFamily===name ? primary : '#F0EAE2',
+                color: selectedFamily===name ? '#fff' : 'var(--text-mid)',
+                border:'none', borderRadius:20, padding:'6px 14px', cursor:'pointer',
+                fontSize:12, fontWeight:700, whiteSpace:'nowrap', fontFamily:'Nunito',
+              }}>{name}</button>
+            ))}
+          </div>
+        </div>
+        {/* Category filter */}
+        <div style={{ padding:'0 20px 12px' }}>
+          <div style={{ display:'flex', gap:8, overflowX:'auto' }} className="scrollbar-hide">
+            {cats.map(c => (
+              <button key={c} onClick={()=>setCat(c)} style={{
+                background: cat===c ? '#3A2E2615' : 'transparent',
+                color: cat===c ? 'var(--text-dark)' : 'var(--text-light)',
+                border: cat===c ? '1.5px solid #3A2E2625':'1.5px solid transparent',
+                borderRadius:20, padding:'5px 14px', cursor:'pointer',
+                fontSize:12, fontWeight:700, whiteSpace:'nowrap', fontFamily:'Nunito',
+              }}>{c}</button>
+            ))}
+          </div>
+        </div>
+        {/* Food grid */}
+        <div style={{ overflowY:'auto', padding:'0 16px', flex:1 }} className="scrollbar-hide">
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:10, paddingBottom:16 }}>
+            {foods.map(([name, data]) => (
+              <button key={name} onClick={()=>{onAdd(name);onClose();}} style={{
+                background:'#fff', border: milestones.includes(name) ? `1.5px solid ${primary}40` : '1.5px solid #F0EAE2',
+                borderRadius:16, padding:'12px 8px', cursor:'pointer',
+                display:'flex', flexDirection:'column', alignItems:'center', gap:6,
+                boxShadow:'0 2px 8px rgba(80,50,30,0.05)', fontFamily:'Nunito',
+                transition:'transform 0.1s, box-shadow 0.1s',
+              }}>
+                <span style={{ fontSize:28 }}>{data.emoji}</span>
+                <span style={{ fontSize:11, fontWeight:700, color:'var(--text-dark)', textAlign:'center', lineHeight:1.3 }}>{name}</span>
+                {milestones.includes(name) && (
+                  <span style={{ fontSize:9, background:`${primary}20`, color:primary, padding:'2px 6px', borderRadius:8, fontWeight:700 }}>tried ✓</span>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── NUTRIENTS SCREEN ─────────────────────────────────────────────────────────
+
+function NutrientsScreen({ state }) {
+  const tkey = todayKey();
+  const today = state.entries[tkey];
+  const nutrients = calcNutrients(today);
+
+  return (
+    <div style={{ padding:'0 0 100px', overflowY:'auto', height:'100%' }} className="scrollbar-hide">
+      {/* Header */}
+      <div style={{ padding:'52px 24px 20px', background:`linear-gradient(135deg, #6B8F71 0%, #4A7A55 100%)`, borderRadius:'0 0 32px 32px' }}>
+        <p style={{ color:'rgba(255,255,255,0.75)', fontSize:13, fontWeight:600 }}>Today's</p>
+        <h2 style={{ color:'#fff', fontSize:26, fontWeight:900 }}>Nutrient Tracker</h2>
+        <p style={{ color:'rgba(255,255,255,0.7)', fontSize:12, marginTop:4 }}>Based on WHO guidelines for {state.tweaks.babyAge||'9 months'}</p>
+      </div>
+
+      <div style={{ padding:'20px 16px', display:'flex', flexDirection:'column', gap:14 }}>
+        {/* Overall score */}
+        <div style={{ background:'#fff', borderRadius:20, padding:20, boxShadow:'var(--shadow-soft)', display:'flex', alignItems:'center', gap:16 }}>
+          <OverallCircle nutrients={nutrients}/>
+          <div>
+            <p style={{ fontWeight:900, fontSize:18 }}>Overall Score</p>
+            <p style={{ fontSize:12, color:'var(--text-light)', marginTop:2 }}>Formula + solid foods combined</p>
+            <p style={{ fontSize:12, color:'var(--text-mid)', marginTop:6, fontWeight:600 }}>
+              🍼 {(today||{}).formulaFeeds||0} formula feeds · 🍽 {getMealCount(today)} food items
+            </p>
+          </div>
+        </div>
+
+        {/* Each nutrient */}
+        {Object.entries(DRI).map(([k, d]) => {
+          const val = nutrients[k];
+          const p = pct(val, d.goal);
+          const status = p >= 90 ? { label:'Great!', bg:'#D4E6D620', color:'#4A7A55' }
+                       : p >= 60 ? { label:'Good', bg:'#F5E4C820', color:'#D4933A' }
+                       : { label:'Needs more', bg:'#F0D5CC20', color:'#C8624A' };
+          return (
+            <div key={k} style={{ background:'#fff', borderRadius:20, padding:'16px 18px', boxShadow:'var(--shadow-soft)' }}>
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10 }}>
+                <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                  <span style={{ fontSize:22 }}>{d.icon}</span>
+                  <div>
+                    <p style={{ fontWeight:800, fontSize:15 }}>{d.label}</p>
+                    <p style={{ fontSize:12, color:'var(--text-light)' }}>{round1(val)} / {d.goal}{d.unit}</p>
+                  </div>
+                </div>
+                <span style={{ fontSize:11, fontWeight:700, background:status.bg, color:status.color, padding:'4px 10px', borderRadius:20 }}>
+                  {status.label}
+                </span>
+              </div>
+              <div style={{ height:10, borderRadius:5, background:'#F0EAE2', overflow:'hidden' }}>
+                <div style={{ width:`${p}%`, height:'100%', borderRadius:5, background:d.color, transition:'width 1s ease' }}/>
+              </div>
+              <p style={{ fontSize:11, color:'var(--text-light)', marginTop:6, fontWeight:600 }}>{p}% of daily recommendation</p>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function OverallCircle({ nutrients }) {
+  const scores = Object.keys(DRI).map(k => pct(nutrients[k], DRI[k].goal));
+  const avg = Math.round(scores.reduce((a,b)=>a+b,0)/scores.length);
+  const r = 36; const circ = 2*Math.PI*r;
+  const dash = (avg/100)*circ;
+  return (
+    <div style={{ position:'relative', width:90, height:90, flexShrink:0 }}>
+      <svg width="90" height="90" style={{ transform:'rotate(-90deg)' }}>
+        <circle cx="45" cy="45" r={r} fill="none" stroke="#F0EAE2" strokeWidth="8"/>
+        <circle cx="45" cy="45" r={r} fill="none" stroke={avg>=80?'#6B8F71':avg>=50?'#D4933A':'#C8624A'} strokeWidth="8"
+          strokeDasharray={`${dash} ${circ}`} strokeLinecap="round"/>
+      </svg>
+      <div style={{ position:'absolute', inset:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center' }}>
+        <span style={{ fontSize:20, fontWeight:900, color:'var(--text-dark)' }}>{avg}%</span>
+        <span style={{ fontSize:9, fontWeight:700, color:'var(--text-light)', marginTop:-2 }}>today</span>
+      </div>
+    </div>
+  );
+}
+
+// ─── WEEK SCREEN ──────────────────────────────────────────────────────────────
+
+function WeekScreen({ state }) {
+  const today = new Date();
+  const days = [];
+  for (let i=6; i>=0; i--) {
+    const d = new Date(today);
+    d.setDate(d.getDate()-i);
+    days.push(d);
+  }
+  const todayKey2 = todayKey();
+  const primary = state.tweaks.primaryColor || '#C8624A';
+
+  return (
+    <div style={{ padding:'0 0 100px', overflowY:'auto', height:'100%' }} className="scrollbar-hide">
+      <div style={{ padding:'52px 24px 20px', background:`linear-gradient(135deg, #D4933A 0%, #C47B28 100%)`, borderRadius:'0 0 32px 32px' }}>
+        <p style={{ color:'rgba(255,255,255,0.75)', fontSize:13, fontWeight:600 }}>This</p>
+        <h2 style={{ color:'#fff', fontSize:26, fontWeight:900 }}>Weekly View</h2>
+        <p style={{ color:'rgba(255,255,255,0.7)', fontSize:12, marginTop:4 }}>Last 7 days at a glance</p>
+      </div>
+
+      {/* Day columns */}
+      <div style={{ padding:'20px 16px', display:'flex', gap:8 }}>
+        {days.map((d,i) => {
+          const key = d.toISOString().slice(0,10);
+          const dayData = state.entries[key];
+          const nutrients = calcNutrients(dayData);
+          const scores = Object.keys(DRI).map(k=>pct(nutrients[k],DRI[k].goal));
+          const avg = scores.reduce((a,b)=>a+b,0)/scores.length;
+          const isToday = key === todayKey2;
+          const mealCount = getMealCount(dayData);
+          return (
+            <div key={key} style={{
+              flex:1, background: isToday ? primary : '#fff',
+              borderRadius:16, padding:'10px 6px', display:'flex', flexDirection:'column', alignItems:'center', gap:6,
+              boxShadow:'var(--shadow-soft)',
+            }}>
+              <p style={{ fontSize:10, fontWeight:700, color: isToday?'rgba(255,255,255,0.8)':'var(--text-light)' }}>
+                {DAYS_LABELS[d.getDay()===0?6:d.getDay()-1]}
+              </p>
+              <p style={{ fontSize:15, fontWeight:900, color: isToday?'#fff':'var(--text-dark)' }}>{d.getDate()}</p>
+              {/* Nutrient mini bars */}
+              <div style={{ display:'flex', flexDirection:'column', gap:2, width:'100%', padding:'0 2px' }}>
+                {['iron','calcium','protein'].map(k=>{
+                  const p = Math.min(100,pct(nutrients[k],DRI[k].goal));
+                  return (
+                    <div key={k} style={{ height:4, borderRadius:2, background: isToday?'rgba(255,255,255,0.25)':'#F0EAE2', overflow:'hidden' }}>
+                      <div style={{ width:`${p}%`, height:'100%', background: isToday?'rgba(255,255,255,0.8)':DRI[k].color }}/>
+                    </div>
+                  );
+                })}
+              </div>
+              <div style={{ textAlign:'center' }}>
+                <p style={{ fontSize:14, fontWeight:900, color: isToday?'#fff':'var(--text-dark)' }}>{Math.round(avg)}%</p>
+                <p style={{ fontSize:9, color: isToday?'rgba(255,255,255,0.7)':'var(--text-light)', fontWeight:600 }}>{mealCount} meals</p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Daily detail cards */}
+      <div style={{ padding:'4px 16px', display:'flex', flexDirection:'column', gap:12 }}>
+        <p style={{ fontWeight:800, fontSize:16, paddingLeft:4 }}>Daily Summary</p>
+        {[...days].reverse().map(d => {
+          const key = d.toISOString().slice(0,10);
+          const dayData = state.entries[key];
+          if (!dayData) return null;
+          const nutrients = calcNutrients(dayData);
+          const scores = Object.keys(DRI).map(k=>pct(nutrients[k],DRI[k].goal));
+          const avg = Math.round(scores.reduce((a,b)=>a+b,0)/scores.length);
+          const isToday = key === todayKey2;
+          const allFoods = Object.values(dayData.meals||{}).flat();
+          return (
+            <div key={key} style={{
+              background:'#fff', borderRadius:18, padding:16, boxShadow:'var(--shadow-soft)',
+              border: isToday ? `2px solid ${primary}40` : '2px solid transparent',
+            }}>
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10 }}>
+                <div>
+                  <p style={{ fontWeight:800, fontSize:14 }}>
+                    {isToday ? 'Today' : d.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'})}
+                    {isToday && <span style={{ marginLeft:8, fontSize:11, background:`${primary}20`, color:primary, padding:'2px 8px', borderRadius:10, fontWeight:700 }}>Today</span>}
+                  </p>
+                  <p style={{ fontSize:12, color:'var(--text-light)', marginTop:2 }}>🍼 {dayData.formulaFeeds} feeds · {getMealCount(dayData)} foods</p>
+                </div>
+                <div style={{ textAlign:'right' }}>
+                  <p style={{ fontSize:22, fontWeight:900, color: avg>=75 ? '#6B8F71' : avg>=50 ? '#D4933A' : '#C8624A' }}>{avg}%</p>
+                  <p style={{ fontSize:10, color:'var(--text-light)', fontWeight:600 }}>nutrition</p>
+                </div>
+              </div>
+              <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+                {allFoods.slice(0,8).map((it,i)=>(
+                  <span key={i} style={{ fontSize:20 }}>{FOODS[it.food]?.emoji||'🍽'}</span>
+                ))}
+                {allFoods.length > 8 && <span style={{ fontSize:12, color:'var(--text-light)', fontWeight:600, alignSelf:'center' }}>+{allFoods.length-8} more</span>}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ─── MILESTONES SCREEN ────────────────────────────────────────────────────────
+
+function MilestonesScreen({ state, dispatch }) {
+  const unlocked = state.milestonesUnlocked;
+  const total = MILESTONES.length;
+  const done2 = unlocked.length;
+
+  return (
+    <div style={{ padding:'0 0 100px', overflowY:'auto', height:'100%' }} className="scrollbar-hide">
+      <div style={{ padding:'52px 24px 20px', background:`linear-gradient(135deg, #8B6B8E 0%, #6B4B6E 100%)`, borderRadius:'0 0 32px 32px' }}>
+        <p style={{ color:'rgba(255,255,255,0.75)', fontSize:13, fontWeight:600 }}>{state.tweaks.babyName||'Amaia'}'s</p>
+        <h2 style={{ color:'#fff', fontSize:26, fontWeight:900 }}>First Foods 🌟</h2>
+        <p style={{ color:'rgba(255,255,255,0.7)', fontSize:12, marginTop:4 }}>{done2} of {total} foods tried</p>
+        {/* Progress */}
+        <div style={{ marginTop:14, height:8, borderRadius:4, background:'rgba(255,255,255,0.25)', overflow:'hidden' }}>
+          <div style={{ width:`${(done2/total)*100}%`, height:'100%', background:'rgba(255,255,255,0.85)', borderRadius:4, transition:'width 0.8s' }}/>
+        </div>
+      </div>
+
+      <div style={{ padding:'20px 16px' }}>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:12 }}>
+          {MILESTONES.map(m => {
+            const tried = unlocked.includes(m.food);
+            return (
+              <button key={m.food} onClick={()=>dispatch({type:'TOGGLE_MILESTONE', food:m.food})}
+                style={{
+                  background: tried ? '#fff' : '#F7F0E6',
+                  border: tried ? `2px solid #8B6B8E40` : '2px solid #EDE4D8',
+                  borderRadius:18, padding:'16px 8px', cursor:'pointer',
+                  display:'flex', flexDirection:'column', alignItems:'center', gap:6,
+                  opacity: tried ? 1 : 0.55,
+                  transition:'all 0.2s',
+                  boxShadow: tried ? '0 4px 16px rgba(139,107,142,0.12)' : 'none',
+                  fontFamily:'Nunito',
+                }}>
+                <span style={{ fontSize:30, filter: tried ? '' : 'grayscale(1)' }}>{m.emoji}</span>
+                <span style={{ fontSize:11, fontWeight:700, color:'var(--text-dark)', textAlign:'center', lineHeight:1.3 }}>{m.food}</span>
+                {tried && <span style={{ fontSize:16 }}>✅</span>}
+                {!tried && <span style={{ fontSize:11, color:'var(--text-light)', fontWeight:600 }}>not yet</span>}
+              </button>
+            );
+          })}
+        </div>
+        <p style={{ textAlign:'center', fontSize:12, color:'var(--text-light)', marginTop:20, fontWeight:600 }}>
+          Tap any food to mark as tried / not yet
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ─── TWEAKS PANEL ─────────────────────────────────────────────────────────────
+
+function TweaksPanel({ tweaks, onUpdate, onClose }) {
+  return (
+    <div style={{
+      position:'fixed', bottom:90, right:16, background:'#fff', borderRadius:20,
+      padding:20, width:240, boxShadow:'0 8px 40px rgba(58,46,38,0.18)', zIndex:300,
+    }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
+        <p style={{ fontWeight:800, fontSize:15 }}>Tweaks</p>
+        <button onClick={onClose} style={{ background:'#F0EAE2', border:'none', cursor:'pointer', borderRadius:8, width:28, height:28, fontSize:16 }}>×</button>
+      </div>
+      <TweakRow label="Baby's Name">
+        <input value={tweaks.babyName} onChange={e=>onUpdate('babyName',e.target.value)}
+          style={{ width:'100%', border:'1.5px solid #EDE4D8', borderRadius:10, padding:'6px 10px', fontFamily:'Nunito', fontSize:13 }}/>
+      </TweakRow>
+      <TweakRow label="Age">
+        <input value={tweaks.babyAge} onChange={e=>onUpdate('babyAge',e.target.value)}
+          style={{ width:'100%', border:'1.5px solid #EDE4D8', borderRadius:10, padding:'6px 10px', fontFamily:'Nunito', fontSize:13 }}/>
+      </TweakRow>
+      <TweakRow label="Accent Color">
+        <input type="color" value={tweaks.primaryColor} onChange={e=>onUpdate('primaryColor',e.target.value)}
+          style={{ width:'100%', height:36, border:'1.5px solid #EDE4D8', borderRadius:10, cursor:'pointer' }}/>
+      </TweakRow>
+      <TweakRow label="Background">
+        <input type="color" value={tweaks.bgColor} onChange={e=>onUpdate('bgColor',e.target.value)}
+          style={{ width:'100%', height:36, border:'1.5px solid #EDE4D8', borderRadius:10, cursor:'pointer' }}/>
+      </TweakRow>
+    </div>
+  );
+}
+
+function TweakRow({ label, children }) {
+  return (
+    <div style={{ marginBottom:12 }}>
+      <p style={{ fontSize:11, fontWeight:700, color:'var(--text-light)', marginBottom:5, letterSpacing:0.5 }}>{label.toUpperCase()}</p>
+      {children}
+    </div>
+  );
+}
+
+// ─── REDUCER ──────────────────────────────────────────────────────────────────
+
+function reducer(state, action) {
+  switch (action.type) {
+    case 'SET_SCREEN': return { ...state, screen: action.screen };
+    case 'OPEN_LOG': return { ...state, logModal: { meal: action.meal } };
+    case 'CLOSE_LOG': return { ...state, logModal: null };
+    case 'SET_FAMILY': return { ...state, selectedFamily: action.name };
+    case 'SET_TWEAKS': return { ...state, tweaks: { ...state.tweaks, [action.key]: action.value } };
+    case 'SET_FORMULA': {
+      const cur = state.entries[action.date] || { formulaFeeds:0, meals:{Breakfast:[],Lunch:[],Dinner:[],Snack:[]} };
+      const next = Math.max(0, Math.min(8, (cur.formulaFeeds||0) + action.delta));
+      return { ...state, entries: { ...state.entries, [action.date]: { ...cur, formulaFeeds:next } } };
+    }
+    case 'ADD_FOOD': {
+      const cur = state.entries[action.date] || { formulaFeeds:0, meals:{Breakfast:[],Lunch:[],Dinner:[],Snack:[]} };
+      const mealItems = [...(cur.meals[action.meal]||[]), { food:action.food, by:action.by }];
+      const meals = { ...cur.meals, [action.meal]: mealItems };
+      const newMilestones = state.milestonesUnlocked.includes(action.food)
+        ? state.milestonesUnlocked
+        : [...state.milestonesUnlocked, action.food];
+      return { ...state, entries: { ...state.entries, [action.date]: { ...cur, meals } }, milestonesUnlocked: newMilestones };
+    }
+    case 'REMOVE_FOOD': {
+      const cur = state.entries[action.date];
+      const mealItems = (cur.meals[action.meal]||[]).filter((_,i)=>i!==action.idx);
+      const meals = { ...cur.meals, [action.meal]: mealItems };
+      return { ...state, entries: { ...state.entries, [action.date]: { ...cur, meals } } };
+    }
+    case 'TOGGLE_MILESTONE': {
+      const has = state.milestonesUnlocked.includes(action.food);
+      return { ...state, milestonesUnlocked: has ? state.milestonesUnlocked.filter(f=>f!==action.food) : [...state.milestonesUnlocked, action.food] };
+    }
+    default: return state;
+  }
+}
+
+// ─── APP ──────────────────────────────────────────────────────────────────────
+
+const STORAGE_KEY = 'amaia_tracker_v1';
+
+function App() {
+  const [state, dispatch] = React.useReducer(reducer, null, () => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) return { ...makeInitialState(), ...JSON.parse(saved) };
+    } catch {}
+    return makeInitialState();
+  });
+  const [showTweaks, setShowTweaks] = useState(false);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        entries: state.entries,
+        milestonesUnlocked: state.milestonesUnlocked,
+        screen: state.screen,
+        selectedFamily: state.selectedFamily,
+        tweaks: state.tweaks,
+      }));
+    } catch {}
+  }, [state.entries, state.milestonesUnlocked, state.screen, state.selectedFamily, state.tweaks]);
+
+  const setScreen = s => dispatch({ type:'SET_SCREEN', screen:s });
+  const handleTweakUpdate = (key, value) => dispatch({ type:'SET_TWEAKS', key, value });
+
+  const bg = state.tweaks.bgColor || '#FDF8F1';
+
+  return (
+    <div style={{ height:'100%', display:'flex', flexDirection:'column', background:bg, maxWidth:430, margin:'0 auto', position:'relative', overflow:'hidden' }}>
+      {state.screen === 'home'       && <HomeScreen state={state} dispatch={dispatch}/>}
+      {state.screen === 'nutrients'  && <NutrientsScreen state={state}/>}
+      {state.screen === 'week'       && <WeekScreen state={state}/>}
+      {state.screen === 'milestones' && <MilestonesScreen state={state} dispatch={dispatch}/>}
+      <BottomNav screen={state.screen} setScreen={setScreen} tweaks={state.tweaks}/>
+      {/* Tweaks toggle button */}
+      <button
+        onClick={()=>setShowTweaks(!showTweaks)}
+        style={{
+          position:'fixed', bottom:72, right:16,
+          background: state.tweaks.primaryColor || '#C8624A',
+          border:'none', borderRadius:'50%', width:40, height:40,
+          cursor:'pointer', zIndex:200, fontSize:18,
+          boxShadow:'0 4px 16px rgba(80,50,30,0.2)',
+          display:'flex', alignItems:'center', justifyContent:'center',
+        }}
+        title="Customise"
+      >⚙️</button>
+      {showTweaks && (
+        <TweaksPanel
+          tweaks={state.tweaks}
+          onUpdate={handleTweakUpdate}
+          onClose={()=>setShowTweaks(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
